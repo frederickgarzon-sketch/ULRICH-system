@@ -1,5 +1,11 @@
 # Behavior Monitor — Research Console
 
+> **Recovery baseline (2026-10-25):** This repository was imported from the
+> available October 4 source copy. The October 17 working copy/fixes were not
+> found and are **not represented as completed here**. Read
+> [repository provenance and collaboration workflow](docs/REPOSITORY_BASELINE.md)
+> before updating or deploying. Historical descriptions below require revalidation.
+
 ## Documentation
 
 For the complete setup sequence, use [`STARTUP_AND_CONNECTION_GUIDE_EN.md`](STARTUP_AND_CONNECTION_GUIDE_EN.md) for English or [`STARTUP_AND_CONNECTION_GUIDE.md`](STARTUP_AND_CONNECTION_GUIDE.md) for Bisaya. The [`docs/DOCUMENTATION_INDEX.md`](docs/DOCUMENTATION_INDEX.md) links the illustrated operations manual, safe credential inventory, physical setup, calibration/validation plan, and Raspberry Pi deployment record.
