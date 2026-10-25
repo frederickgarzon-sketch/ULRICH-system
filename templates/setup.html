@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Initial system setup · {{ app_name }}</title><link rel="icon" type="image/png" href="/static/img/brand/behavior-monitor-icon.png">
+<script>document.documentElement.dataset.theme=localStorage.getItem("monitor-theme")||"light"</script>
+<link rel="stylesheet" href="/static/css/setup.css?v=20261004-placement-guide"><link rel="stylesheet" href="/static/css/ui-help.css"></head>
+<body data-requested-step="{{ requested_step or '' }}">
+<header class="setup-header"><a class="setup-brand" href="/setup"><img src="/static/img/brand/behavior-monitor-icon.png" alt=""><span><strong>Behavior Monitor</strong><small>One-time system setup</small></span></a><div><span id="save-state" class="save-state">Loading saved progress…</span><form method="post" action="/logout"><button class="quiet" type="submit">Sign out</button></form></div></header>
+<main class="setup-layout">
+  <aside class="setup-sidebar"><div class="sidebar-intro"><span class="eyebrow">Guided preparation</span><h1>Prepare this computer</h1><p>Complete these steps once. Technical controls will be hidden during normal operation.</p></div><ol id="setup-nav"></ol><div class="privacy-note"><b>Privacy protected</b><span>Raw video stays off. Only derived measurements and session records are stored.</span></div></aside>
+  <section class="setup-workspace">
+    <div id="setup-alert" class="setup-alert" hidden></div>
+    <header class="step-header"><div><span id="step-count" class="eyebrow">Step 1 of 6</span><h2 id="step-heading">System check</h2><p id="step-description">Verify the local application before connecting devices.</p></div><span id="step-status" class="status-pill">Checking</span></header>
+
+    <article class="setup-step active" data-step="1">
+      <div class="section-heading"><div><h3>Check the application</h3><p>The server, database, storage, AI model, and privacy mode are checked automatically.</p></div><button type="button" class="secondary" data-action="retry">Retry checks</button></div>
+      <div id="system-checks" class="check-list"></div>
+      <details class="technical"><summary>Technical details</summary><p>The database and saved setup live on this computer. Clearing browser history will not remove setup completion.</p></details>
+    </article>
+
+    <article class="setup-step" data-step="2">
+      <h3>How are the cameras connected?</h3><p class="lead">Choose the physical connection used by this installation.</p>
+      <div id="connection-options" class="choice-grid">
+        <label><input type="radio" name="connection_mode" value="usb"><span class="choice-icon">USB</span><strong>Two USB webcams</strong><small>Both cameras connect directly to this computer.</small></label>
+        <label><input type="radio" name="connection_mode" value="rpi"><span class="choice-icon">Pi</span><strong>Raspberry Pi camera node</strong><small>Both streams arrive through the local network.</small></label>
+        <label><input type="radio" name="connection_mode" value="custom"><span class="choice-icon">URL</span><strong>Custom network streams</strong><small>Use known stream addresses or advanced sources.</small></label>
+      </div>
+      <div id="rpi-test-panel" class="inline-card" hidden><div><strong>Raspberry Pi connection</strong><span>Default node: adhd-camera.local on port 8090</span></div><button id="test-rpi" type="button" class="secondary">Test connection</button><output id="rpi-result">Not tested</output></div>
+    </article>
+
+    <article class="setup-step" data-step="3">
+      <div class="section-heading"><div><h3>Assign face and body cameras</h3><p>Use different sources. Preview each view before continuing.</p></div><div class="inline-actions"><button id="discover-cameras" type="button" class="secondary">Detect USB cameras</button><button id="swap-sources" type="button" class="secondary">Swap cameras</button></div></div>
+      <div class="camera-assignment">
+        <section><div class="camera-title"><span>1</span><div><strong>Face camera</strong><small>Eyes and head at eye level</small></div></div><label>Camera source<select id="face-choice"></select><input id="face-source" aria-label="Face camera source" placeholder="0 or stream URL"></label><figure><img data-preview-src="/preview/face?overlays=false" alt="Face camera preview"><figcaption id="face-preview-status">Checking…</figcaption></figure></section>
+        <section><div class="camera-title"><span>2</span><div><strong>Body camera</strong><small>Required joints remain visible</small></div></div><label>Camera source<select id="body-choice"></select><input id="body-source" aria-label="Body camera source" placeholder="1 or stream URL"></label><figure><img data-preview-src="/preview/body?overlays=false" alt="Body camera preview"><figcaption id="body-preview-status">Checking…</figcaption></figure></section>
+      </div>
+      <div id="camera-result" class="inline-message">Loading camera configuration…</div>
+    </article>
+
+    <article class="setup-step" data-step="4">
+      <h3>Confirm room placement</h3><p class="lead">Position the cameras and participant before confirming each item.</p>
+      <section class="body-pov-guide" aria-labelledby="body-pov-title"><div><span class="eyebrow">Recommended body-camera POV</span><h4 id="body-pov-title">Prioritize a clear seated upper-body view</h4><p>Place the camera almost directly in front of the participant. The head, shoulders, elbows, hands, and hips must stay visible. Knees and feet improve full-body analysis but are optional in the default seated-monitoring profile.</p><dl><div><dt>Distance</dt><dd>About 1.2–2.0 m</dd></div><div><dt>Height</dt><dd>Waist to chest level</dd></div><div><dt>Angle</dt><dd>Front view; 0–15° from center</dd></div><div><dt>Tilt</dt><dd>Level or slightly downward</dd></div></dl></div><figure class="body-pov-sample"><div class="body-pov-frame"><img data-preview-src="/preview/body?overlays=false" alt="Live body-camera placement preview"><svg viewBox="0 0 320 180" role="img" aria-label="Seated upper-body safe framing guide"><rect x="52" y="10" width="216" height="160" rx="12" class="safe-frame"/><circle cx="160" cy="38" r="13"/><path d="M160 51 L160 101 M125 68 L195 68 M125 68 L112 105 M195 68 L208 105 M160 101 L135 126 L126 159 M160 101 L185 126 L194 159"/><circle cx="112" cy="105" r="4"/><circle cx="208" cy="105" r="4"/><circle cx="126" cy="159" r="4"/><circle cx="194" cy="159" r="4"/></svg><span class="pov-label top">Head and shoulders visible</span><span class="pov-label bottom">Knees and feet preferred</span></div><figcaption>Solid requirement: upper body and hips. Recommended when space permits: knees and feet.</figcaption></figure></section>
+      <div class="placement-grid"><div class="placement-guide"><h4>Face view</h4><ul><li>Camera is at eye level</li><li>Both eyes and full face are clear</li><li>Participant sits about 35–45 cm away</li></ul></div><div class="placement-guide"><h4>Body view checklist</h4><ul><li><strong>Required:</strong> head, shoulders, elbows, hands, and hips stay visible</li><li><strong>Recommended:</strong> include knees and feet when room space permits</li><li>Leave space beside both arms and avoid a strong side or low-floor angle</li></ul></div></div>
+      <fieldset class="confirmation-list"><legend>Operator confirmation</legend>
+        <label><input type="checkbox" data-placement="lighting"><span><strong>Lighting is even</strong><small>No strong backlight or deep facial shadow.</small></span></label>
+        <label><input type="checkbox" data-placement="face_framing"><span><strong>Face framing is correct</strong><small>Face and both eyes remain visible.</small></span></label>
+        <label><input type="checkbox" data-placement="body_framing"><span><strong>Body framing is correct</strong><small>Head, shoulders, elbows, hands, and hips remain inside the frame.</small></span></label>
+        <label><input type="checkbox" data-placement="distance"><span><strong>Distance is correct</strong><small>Face distance is approximately 35–45 cm.</small></span></label>
+      </fieldset>
+    </article>
+
+    <article class="setup-step" data-step="5">
+      <div class="section-heading"><div><h3>Calibrate tracking</h3><p>Keep one participant still and centered while the baselines are measured.</p></div><button id="refresh-calibration" class="secondary" type="button">Retry checks</button></div>
+      <div class="calibration-preview-grid"><figure><img data-preview-src="/preview/face" alt="Live face calibration preview"><figcaption>Face view · keep both eyes visible</figcaption></figure><figure><img data-preview-src="/preview/body" alt="Live body calibration preview"><figcaption>Body view · keep required joints visible</figcaption></figure></div>
+      <div class="calibration-actions" aria-label="Calibration progress"><button id="calibrate-eyes" class="calibration-step-button" type="button"></button><button id="calibrate-head" class="calibration-step-button" type="button"></button><button id="calibrate-directions" class="calibration-step-button" type="button"></button></div>
+      <section id="calibration-live-status" class="calibration-live-status" aria-live="assertive"><div id="calibration-status-icon" class="calibration-status-icon">1</div><div class="calibration-status-copy"><span id="calibration-status-label">Ready</span><strong id="calibration-status-title">Calibrate eye baseline</strong><small id="calibration-status-instruction">Look at the center, keep both eyes visible, and remain still.</small><div id="calibration-progress-track" class="calibration-progress-track" hidden><span id="calibration-progress-fill"></span></div></div><b id="calibration-countdown"></b></section>
+      <section id="direction-coach" class="direction-coach" aria-live="polite" hidden><div id="direction-arrow" class="direction-arrow">•</div><div><span id="direction-progress">0 of 5 directions passed</span><strong id="direction-command">Ready for guided directions</strong><small id="direction-feedback">Complete eye and neutral-head calibration first.</small></div><button id="retry-direction" class="secondary" type="button" hidden>Retry current direction</button></section>
+      <div id="calibration-checks" class="check-list"></div>
+      <div class="help-card"><strong>Keep this page open during calibration.</strong><span>Follow one direction at a time. The system must detect each direction twice before it passes.</span><button id="fix-placement" class="secondary" type="button">Adjust camera placement</button></div>
+    </article>
+
+    <article class="setup-step" data-step="6">
+      <h3>Review and finish</h3><p class="lead">Confirm the saved setup and participant-screen connection.</p>
+      <div class="review-grid"><section><h4>Setup summary</h4><dl id="setup-summary"></dl><button id="test-connectivity" type="button">Test connections</button><output id="connectivity-result">Open the participant screen before testing.</output></section><section><h4>Participant screen</h4><p>Open this address on the tablet connected to the same router, then press Test connections.</p><code id="participant-url">Checking address…</code><img id="participant-qr" class="qr" alt="Participant screen QR code"><button id="copy-participant-url" type="button" class="secondary">Copy link</button></section></div>
+      <label class="final-confirm"><input id="finish-confirm" type="checkbox"><span><strong>I reviewed this setup</strong><small>The camera assignment, placement, calibration, and participant-screen address are correct.</small></span></label>
+    </article>
+
+    <footer class="wizard-actions"><button id="back-step" class="secondary" type="button">Back</button><span id="action-message" role="status"></span><button id="continue-step" type="button">Continue</button></footer>
+  </section>
+</main>
+<script src="/static/js/ui-help.js"></script><script src="/static/js/setup.js?v=20261004-calibration-feedback"></script></body></html>
