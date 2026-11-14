@@ -1,5 +1,28 @@
 # Repository baseline and collaboration
 
+## Current source — 2026-11-14
+
+The user located the October 11 source and moved it to
+Documents/ChatGPT/ULRICH system-2026-10-11. All 168 original files were compared
+with the Desktop duplicate before that duplicate was sent to Recycle Bin.
+This Git checkout is now synchronized from that newer source, including local
+Phase 2–5 Shape Matching/balloon practice and visual updates. The prior missing
+source scan is retained as HISTORICAL_MISSING_SOURCE_SCAN_2026-11-14.md.
+
+Current targeted evidence: 40 JS regressions and 11 focused Python shape tests
+passed after the visual update; the broader Phase 5 batch passed 38 focused
+Python tests before that visual-only update. The full application suite did not
+collect in the minimal environment. No new production camera/session acceptance
+is claimed. See GAME_UPDATE_PHASE_5_2026-11-14.md for remaining work.
+
+Working integration Git checkout: ADHD/ULRICH-system. Make future commits here,
+or clone its remote; changes in the external October 11 folder do not
+automatically synchronize to this checkout. No runtime data, credentials, test
+virtual environment or generated screenshot evidence was copied into Git.
+
+The October 17 working changes are still not assumed recovered. The section below
+documents the original import, NOT the current version.
+
 ## Source provenance — 2026-10-25
 
 This repository starts from the available 2026-10-04 21:23:33 release-staging

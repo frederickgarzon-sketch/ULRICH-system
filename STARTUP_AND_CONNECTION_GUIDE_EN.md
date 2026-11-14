@@ -240,7 +240,7 @@ Complete the steps in order:
    - Run the 10-second Neutral Head calibration.
    - Follow the animated `UP`, `DOWN`, `LEFT`, `RIGHT`, and `CENTER` verification.
 4. **Body check:** verify stillness, arms, torso, and selected leg movement.
-5. **Attention Task practice:** verify keyboard or touch input.
+5. **Pop the Balloon input check:** verify keyboard or touch input. The participant's separate five-balloon practice occurs after secure pairing and is not recorded.
 6. **Review:** save a draft, inspect it, and accept the calibration profile.
 
 Do not start a real session while a critical indicator is Yellow/Red or before an appropriate calibration profile has been accepted.
@@ -254,10 +254,10 @@ http://192.168.x.x:8000
 ```
 
 2. Open that LAN address in the tablet browser.
-3. To open the participant task directly:
+3. Do not open the participant task by typing a direct address. On the operator screen, choose **Pair / open participant screen**, then use its secure link or QR code:
 
 ```text
-http://<laptop-LAN-IP>:8000/attention-task
+http://<laptop-LAN-IP>:8000/attention-task?token=<secure-pairing-token>
 ```
 
 If the tablet cannot connect:
@@ -273,7 +273,7 @@ If the tablet cannot connect:
 2. Confirm that the correct calibration profile is accepted.
 3. Press **Start session**.
 4. Confirm Green indicators and valid live measurements.
-5. Run the Attention Task on the tablet.
+5. Run the five-balloon practice and then the recorded Pop the Balloon activity on the tablet.
 6. Press **Stop session** after testing.
 7. Review the saved record/report before releasing the station.
 

@@ -27,7 +27,7 @@ def test_practice_completion_requires_started_practice(monkeypatch):
 
 def test_changed_level_invalidates_practice(monkeypatch):
     instance = service(monkeypatch)
-    instance.prepare_practice(task_key="target_tap", age_profile="child", difficulty="easy")
+    instance.prepare_practice(task_key="pop_balloon", age_profile="child", difficulty="easy")
     instance.complete_practice()
     with pytest.raises(attention_task.AttentionTaskConflict, match="Complete practice"):
         instance.start(difficulty="hard")

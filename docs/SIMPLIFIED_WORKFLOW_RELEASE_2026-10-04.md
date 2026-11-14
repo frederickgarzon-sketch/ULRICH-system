@@ -30,7 +30,7 @@ The six-step calibration belongs to the equipment and room. It is completed once
 
 - Updated Dashboard inspected in the browser: two visible steps and `System ready` state.
 - JavaScript syntax check passed.
-- Full automated suite passed: **233 tests**.
+- Current full automated suite passed: **182 tests**, including the Pop the Balloon replacement, early-end/session-stop behavior, practice replay, and historical-record compatibility coverage.
 - The final client ZIP privacy scan excludes `.env`, `.env.backup`, databases, logs, caches, access keys, test outputs, and participant data.
 - The client ZIP contains `.env.example`, application source, model file, startup scripts, tests, and current documentation.
 

@@ -32,7 +32,7 @@ This record separates implemented/software-tested behavior from claims that requ
 
 ## Automated verification
 
-- [x] 233 Python tests passed on 2026-10-04; JavaScript syntax check passed.
+- [x] 182 Python tests passed on 2026-10-04 after the Pop the Balloon replacement; JavaScript syntax check passed.
 - [x] Python compile check passed.
 - [x] Setup JavaScript syntax check passed.
 - [x] Database additive migration passed on the current database.

@@ -123,7 +123,7 @@ async def researcher_access(request: Request, call_next):
         return await call_next(request)
     path = request.url.path
     public = (path == "/login" or path.startswith("/static/") or path == "/api/health" or
-              path == "/attention-task" or path == "/api/attention/catalog" or
+              path == "/attention-task" or (path == "/shape-matching" and bool(request.query_params.get("token"))) or path == "/api/attention/catalog" or
               path.startswith("/api/participant-task/"))
     identity = token_identity(request.cookies.get(COOKIE_NAME))
     request.state.identity = identity
@@ -278,6 +278,13 @@ def attention_task_page(request: Request):
 @app.get("/attention-task/operator", response_class=HTMLResponse)
 def attention_task_operator_page(request: Request):
     return templates.TemplateResponse(request=request, name="attention-task.html", context={"app_name": settings.app_name})
+
+
+@app.get("/shape-matching", response_class=HTMLResponse)
+def shape_matching_preview(request: Request):
+    """Authenticated, local-only game preview; no session records are written."""
+    return templates.TemplateResponse(request=request, name="shape-matching.html",
+                                      context={"app_name": settings.app_name})
 
 
 @app.get("/reports/{session_id}", response_class=HTMLResponse)

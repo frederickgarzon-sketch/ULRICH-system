@@ -23,7 +23,7 @@ def initialized_database():
 def test_cancel_practice_does_not_unlock_recording(monkeypatch):
     monkeypatch.setattr(session_manager, '_active_id', 741)
     service = AttentionTaskService(); service.pair_display()
-    service.prepare_practice(task_key='target_tap', age_profile='child', difficulty='easy')
+    service.prepare_practice(task_key='pop_balloon', age_profile='child', difficulty='easy')
     assert service.cancel_practice()['phase'] == 'waiting'
     with pytest.raises(AttentionTaskConflict): service.complete_practice()
 
@@ -31,8 +31,8 @@ def test_cancel_practice_does_not_unlock_recording(monkeypatch):
 def test_old_practice_generation_cannot_complete_new_practice(monkeypatch):
     monkeypatch.setattr(session_manager, '_active_id', 742)
     service = AttentionTaskService(); service.pair_display()
-    old = service.prepare_practice(task_key='target_tap', age_profile='child', difficulty='easy')
-    service.prepare_practice(task_key='go_no_go', age_profile='teen', difficulty='hard')
+    old = service.prepare_practice(task_key='pop_balloon', age_profile='child', difficulty='easy')
+    service.prepare_practice(task_key='pop_balloon', age_profile='teen', difficulty='hard')
     with pytest.raises(AttentionTaskConflict, match='Practice changed'):
         service.complete_practice(old['practice_generation'])
     assert service.public_status()['phase'] == 'practice'
@@ -41,8 +41,8 @@ def test_old_practice_generation_cannot_complete_new_practice(monkeypatch):
 def test_old_practice_cannot_cancel_replacement(monkeypatch):
     monkeypatch.setattr(session_manager, '_active_id', 748)
     service = AttentionTaskService(); service.pair_display()
-    previous = service.prepare_practice(task_key='target_tap', age_profile='child', difficulty='easy')
-    service.prepare_practice(task_key='go_no_go', age_profile='adult', difficulty='standard')
+    previous = service.prepare_practice(task_key='pop_balloon', age_profile='child', difficulty='easy')
+    service.prepare_practice(task_key='pop_balloon', age_profile='adult', difficulty='standard')
     with pytest.raises(AttentionTaskConflict, match='Practice changed'):
         service.cancel_practice(previous['practice_generation'])
     assert service.public_status()['phase'] == 'practice'
@@ -51,7 +51,7 @@ def test_old_practice_cannot_cancel_replacement(monkeypatch):
 def test_pairing_is_preserved_during_practice_and_invalid_after_session_change(monkeypatch):
     monkeypatch.setattr(session_manager, '_active_id', 743)
     service = AttentionTaskService(); token = service.pair_display()['token']
-    service.prepare_practice(task_key='target_tap', age_profile='child', difficulty='easy')
+    service.prepare_practice(task_key='pop_balloon', age_profile='child', difficulty='easy')
     assert service.pair_display()['token'] == token
     assert service.public_status()['phase'] == 'practice'
     monkeypatch.setattr(session_manager, '_active_id', 744)
@@ -72,7 +72,7 @@ def test_changed_participant_requires_new_pairing_before_practice(monkeypatch):
     service.pair_display()
     monkeypatch.setattr(session_manager, '_active_id', 747)
     with pytest.raises(AttentionTaskConflict, match='Pair the display again'):
-        service.prepare_practice(task_key='target_tap', age_profile='child', difficulty='easy')
+        service.prepare_practice(task_key='pop_balloon', age_profile='child', difficulty='easy')
 
 
 def test_partial_room_setup_can_be_saved_as_draft():
@@ -126,11 +126,11 @@ def test_completed_run_remains_completed_after_session_stop():
         participant = client.post('/api/participants', json={'participant_code':'QA_DONE_'+uuid4().hex[:8]}).json()
         session = client.post('/api/sessions/start', json={'participant_id':participant['id']}).json()
         attention_task_service.pair_display()
-        started = client.post('/api/attention/start', json={'task_key':'go_no_go','age_profile':'adult','difficulty':'easy'})
+        started = client.post('/api/attention/start', json={'task_key':'pop_balloon','age_profile':'adult','difficulty':'easy','required_pops':5})
         assert started.status_code == 200
-        attention_task_service._total_trials = 1
-        trial = client.post('/api/attention/trials/next').json()
-        assert client.post(f"/api/attention/trials/{trial['id']}/complete",json={'responded':False}).status_code == 200
+        for _ in range(5):
+            trial = client.post('/api/attention/trials/next').json()
+            assert client.post(f"/api/attention/trials/{trial['id']}/complete",json={'responded':True,'reaction_time_ms':100}).status_code == 200
         client.post(f"/api/sessions/{session['id']}/stop")
         report = client.get(f"/api/reports/{session['id']}").json()
         assert report['attention_configuration'][0]['status'] == 'completed'

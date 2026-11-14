@@ -3,10 +3,36 @@ import numpy as np
 import pytest
 
 from app.vision.head_pose import MODEL_POINTS, POSE_LANDMARK_INDICES, HeadMovementTracker, HeadPose, estimate_head_pose
+from app.vision.head_pose import neutral_angle
+
+
+def test_circular_neutral_does_not_average_wrapped_angles_to_zero():
+    assert abs(neutral_angle([179, -179, 178, -178])) == pytest.approx(180)
+
+
+def test_direction_hold_rejects_single_frame_and_separates_axes():
+    tracker = HeadMovementTracker(1, 12, 7, .75)
+    assert tracker.update(HeadPose(15, -18, 0), 1).direction == "CENTER"
+    result = tracker.update(HeadPose(15, -18, 0), 1.3)
+    assert (result.horizontal, result.vertical, result.tilt) == ("RIGHT", "UP", "LEVEL")
+    tracker.reset_tracking()
+    assert tracker.update(HeadPose(0, 0, 0), 2).direction == "CENTER"
+
+
+def test_smoothing_follows_short_arc_across_wrap():
+    tracker = make_tracker(.5)
+    tracker.update(HeadPose(179, 0, 0), 1)
+    result = tracker.update(HeadPose(-179, 0, 0), 1.1)
+    assert abs(result.pose.yaw) == pytest.approx(180)
+
+
+def test_degenerate_landmarks_are_unknown_not_a_worker_crash():
+    assert estimate_head_pose([(0.0, 0.0, 0.0)] * 468, 640, 480) is None
+    assert estimate_head_pose([(float("nan"), 0.0, 0.0)] * 468, 640, 480) is None
 
 
 def make_tracker(alpha: float = 1.0) -> HeadMovementTracker:
-    return HeadMovementTracker(alpha, threshold_degrees=12, release_degrees=7, refractory_seconds=0.75)
+    return HeadMovementTracker(alpha, threshold_degrees=12, release_degrees=7, refractory_seconds=0.75, direction_hold_seconds=0)
 
 
 def test_small_jitter_does_not_count_as_movement() -> None:

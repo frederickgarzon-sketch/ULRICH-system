@@ -465,12 +465,14 @@ def test_phase14_session_exports_and_database_backup() -> None:
     assert json_export.json()["participant"]["code"] == "EXPORT_TEST"
     assert json_export.json()["interpretation"]["type"] == "descriptive_research_summary"
     assert json_export.json()["research_screening"]["clinically_validated"] is False
-    assert json_export.json()["research_screening"]["status"] == "reference_required"
+    assert json_export.json()["research_screening"]["status"] == "descriptive_only"
+    assert json_export.json()["research_screening"]["score"] is None
+    assert json_export.json()["research_features"]
     assert len(json_export.json()["research_basis"]) == 3
-    assert "Recorded readings" in report_page.text
-    assert "Research screening summary" in report_page.text
-    assert "No ADHD / No-ADHD classification was generated" in report_page.text
-    assert "Technical details and charts" in report_page.text
+    assert "Behavioral Session Records" in report_page.text
+    assert "Research screening summary" not in report_page.text
+    assert "No-ADHD" not in report_page.text
+    assert "Trial-by-trial records" in report_page.text
     assert zip_export.status_code == 200 and zip_export.content.startswith(b"PK")
     assert backup.status_code == 200 and backup.content.startswith(b"PK")
     with TestClient(app) as client:
@@ -511,11 +513,11 @@ def test_attention_task_professional_workflow_page() -> None:
         public_status = client.get(f"/api/participant-task/status?token={display_token}")
         rejected = client.get("/api/participant-task/status?token=invalid-token-that-is-long-enough")
     assert page.status_code == 200
-    assert "Start practice" in page.text
-    assert "Begin recorded task" in page.text
+    assert "Start / repeat practice" in page.text
+    assert "Begin recorded game" in page.text
     assert 'id="connection-screen"' in page.text
     assert 'id="waiting-screen"' in page.text
-    assert "Compact researcher console" in client.get("/static/css/attention-task.css").text
+    assert "Participant experience" in client.get("/static/css/attention-task.css").text
     assert status.status_code == 200
     assert "trial_number" in status.json()
     assert display_info.status_code == 200 and "/attention-task?token=" in paired_url
@@ -529,7 +531,8 @@ def test_age_adapted_attention_catalog_and_saved_configuration() -> None:
     with TestClient(app) as client:
         catalog = client.get("/api/attention/catalog")
         assert catalog.status_code == 200
-        assert len(catalog.json()["tasks"]) == 5
+        assert set(catalog.json()["tasks"]) == {"pop_balloon"}
+        assert catalog.json()["goal_presets"] == [10, 15, 20, 30]
         assert {"child", "preteen", "teen", "adult"} == set(catalog.json()["age_profiles"])
 
         started_session = client.post("/api/sessions/start", json={"participant_id": participant.id})
@@ -537,16 +540,16 @@ def test_age_adapted_attention_catalog_and_saved_configuration() -> None:
         session_id = started_session.json()["id"]
         assert client.get("/api/participant-display/info").status_code == 200
         started_task = client.post("/api/attention/start", json={
-            "task_key": "visual_search", "age_profile": "teen", "difficulty": "standard",
-            "total_trials": 30, "target_probability": 0.3,
+            "task_key": "pop_balloon", "age_profile": "teen", "difficulty": "standard",
+            "required_pops": 30, "game_mode": "target_color", "target_color": "purple",
         })
         assert started_task.status_code == 200
-        assert started_task.json()["task_key"] == "visual_search"
+        assert started_task.json()["task_key"] == "pop_balloon"
         assert started_task.json()["age_profile"] == "teen"
         assert started_task.json()["difficulty"] == "standard"
         duplicate = client.post("/api/attention/start", json={
-            "task_key": "target_tap", "age_profile": "child", "difficulty": "easy",
-            "total_trials": 15, "target_probability": 0.4,
+            "task_key": "pop_balloon", "age_profile": "child", "difficulty": "easy",
+            "required_pops": 15, "game_mode": "any",
         })
         assert duplicate.status_code == 409
         client.post("/api/attention/abort")
@@ -554,7 +557,7 @@ def test_age_adapted_attention_catalog_and_saved_configuration() -> None:
         exported = client.get(f"/api/exports/sessions/{session_id}.json")
 
     configurations = exported.json()["attention_configuration"]
-    assert configurations[-1]["task_key"] == "visual_search"
+    assert configurations[-1]["task_key"] == "pop_balloon"
     assert configurations[-1]["age_profile"] == "teen"
     assert configurations[-1]["difficulty"] == "standard"
 
@@ -570,23 +573,24 @@ def test_secure_tablet_pairing_practice_and_recorded_trial_end_to_end() -> None:
         assert client.get(f"/api/participant-task/status?token={old_token}").status_code == 401
 
         practice = client.post("/api/attention/practice", json={
-            "task_key": "go_no_go", "age_profile": "child", "difficulty": "easy"})
+            "task_key": "pop_balloon", "age_profile": "child", "difficulty": "easy",
+            "required_pops": 5, "game_mode": "any"})
         assert practice.status_code == 200 and practice.json()["phase"] == "practice"
         assert client.post(f"/api/participant-task/practice-complete?token={token}").json()["phase"] == "ready"
 
         started = client.post("/api/attention/start", json={
-            "task_key": "go_no_go", "age_profile": "child", "difficulty": "easy",
-            "total_trials": 15, "target_probability": .4})
+            "task_key": "pop_balloon", "age_profile": "child", "difficulty": "easy",
+            "required_pops": 5, "game_mode": "any"})
         assert started.status_code == 200
         trial = client.post(f"/api/participant-task/trials/next?token={token}").json()
-        assert trial["stimulus_data"]["label"] in {"GO", "STOP"}
+        assert trial["stimulus_data"]["color"] in {"coral", "sky", "turquoise", "yellow", "purple", "orange", "green", "pink"}
         recovered = client.post(f"/api/participant-task/recover?token={token}")
         assert recovered.status_code == 200 and recovered.json()["trial_number"] == 0
         retried = client.post(f"/api/participant-task/trials/next?token={token}").json()
         assert retried["trial_number"] == 1
         completed = client.post(
             f"/api/participant-task/trials/{retried['id']}/complete?token={token}",
-            json={"responded": False, "reaction_time_ms": None})
+            json={"responded": True, "reaction_time_ms": 250})
         assert completed.status_code == 200
         client.post("/api/attention/abort")
         client.post(f"/api/sessions/{session['id']}/stop", json={})

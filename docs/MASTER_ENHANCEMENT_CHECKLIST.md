@@ -1,6 +1,6 @@
 # Master enhancement checklist
 
-Last software review: 2026-10-03 (Asia/Singapore)
+Last software review: 2026-10-04 (Asia/Singapore)
 
 Status legend: **Done** = implemented and software-tested; **Device test** = implementation exists but requires physical acceptance; **Pending** = not yet accepted.
 
@@ -48,7 +48,7 @@ Status legend: **Done** = implemented and software-tested; **Device test** = imp
 
 ## Activity and participant display
 
-- **Done** — Recommended age/difficulty/trial defaults, compact task choices and pre-launch summary.
+- **Done** — Age-based Pop the Balloon defaults, difficulty/mode controls, required-pop goal, target color, sound control, and pre-launch summary.
 - **Done** — Pair display → Practice → Recorded task gate; no second active task is allowed.
 - **Done** — Participant-only waiting, practice, task, paused, reconnecting and finished screens.
 - **Done** — Finished message asks the participant to wait for the researcher.
@@ -75,7 +75,7 @@ Status legend: **Done** = implemented and software-tested; **Device test** = imp
 
 ## Verification and release
 
-- **Done** — 233 automated tests passed after the simplified two-step daily workflow, silent automatic start check, integrity/security audit, seated upper-body readiness, multi-frame joint-stability, calibration-feedback, and preview-stream reliability updates; Python and JavaScript syntax checks passed.
+- **Done** — 182 automated tests passed after the complete Pop the Balloon replacement, two-step daily workflow, silent automatic start check, integrity/security audit, calibration-feedback, reports, exports, persistence, recovery, and compatibility updates; Python and JavaScript syntax checks passed.
 - **Done** — Isolated mock-browser walkthrough covered guided workflow and camera setup at desktop/tablet/mobile widths.
 - **Done** — Isolated real-mode test with one USB source remained healthy; face connected and body reported a safe configuration conflict instead of crashing.
 - **Pending** — Complete the physical acceptance items above.

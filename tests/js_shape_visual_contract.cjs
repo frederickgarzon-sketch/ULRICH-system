@@ -1,0 +1,5 @@
+const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
+const html=fs.readFileSync(path.join(__dirname,'../templates/shape-matching.html'),'utf8');
+test('shape game reuses balloon stylesheet and activity shell',()=>{for(const name of ['attention-task.css','task-header','task-brand','game-hud','goal-card','instruction-card','modal-panel','completion-panel','practice-footer'])assert.ok(html.includes(name),name);assert.ok(!html.includes('Shape Garden'))});
+test('redesign preserves controller IDs and has no duplicate IDs',()=>{const ids=[...html.matchAll(/\bid="([^"]+)"/g)].map(m=>m[1]);assert.equal(new Set(ids).size,ids.length);for(const id of ['setup','game','paused','complete','connection','piece','targets','bar','progress','count','practice','start','pair','operator-stop-shape','retry-save','save-note'])assert.ok(ids.includes(id),id)});
+test('research controls are expandable and instructions announced',()=>{assert.match(html,/<details class="researcher-options">/);assert.match(html,/<details class="rules">/);assert.match(html,/aria-live="polite"/)});

@@ -14,6 +14,12 @@ This package is **copy-and-run after one automatic setup**. It is not a standalo
 8. Technical controls are hidden under **System Setup** and require the owner/admin access key again before cameras, calibration, network, diagnostics, or saved setup can be changed.
 9. For the next launch, double-click the same BAT file. It checks the local environment and starts the server without reinstalling packages when they are healthy.
 
+## First recorded participant activity
+
+After the one-time setup is accepted, select the participant and start the monitoring session from Overview. Open **Pop the Balloon**, create the secure participant-screen link/QR, and open that link on the tablet. Do not type `/attention-task` manually because an unpaired screen has no participant capability token.
+
+Run the five-balloon practice first. Practice is not recorded. Confirm the selected age profile, difficulty, mode, target color when applicable, and correct-pop goal; then choose **Begin recorded game**. The game completes automatically at the correct-pop goal. Finish the monitoring session afterward to finalize its report and exports.
+
 ## If the first launch stops
 
 - **Python 3.11 not found:** Install 64-bit Python 3.11 from `https://www.python.org/downloads/`. Select **Add python.exe to PATH** during installation. Close and reopen the BAT file.

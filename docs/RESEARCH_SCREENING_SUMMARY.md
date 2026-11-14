@@ -1,5 +1,7 @@
 # Research screening summary
 
+> Update 2026-10-11: participant-facing reports and exports now return descriptive behavioral records/features only (`research_screening.status = descriptive_only`, `score = null`). The optional reference/composite code below remains an offline research tool, not an automatic participant result. See `CLIENT_FIX_CHECKLIST_2026-10-11.md`.
+
 The session report includes descriptive behavioral features and an optional
 experimental composite. It does **not** diagnose ADHD and must not be used as a
 replacement for clinical history, multi-setting observations, standardized

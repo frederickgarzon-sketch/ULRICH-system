@@ -2,6 +2,8 @@
 
 - [UI/UX implementation record](UI_UX_IMPLEMENTATION.md) — current interface direction, completed redesign work, verification, and remaining visual validation.
 - [Access and participant workflow](ACCESS_AND_PARTICIPANT_WORKFLOW.md) — roles, named tokens, participant fields, borrower workflow, and privacy rules.
+- [Pop the Balloon field guide](POP_THE_BALLOON_TASK.md) — current game workflow, defaults, saved fields, recovery behavior, and device-test boundary.
+- [Pop the Balloon completion checklist](POP_THE_BALLOON_COMPLETION_CHECKLIST.md) — itemized implementation, verification, physical acceptance, and release status.
 
 Start here:
 

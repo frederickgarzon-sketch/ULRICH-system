@@ -242,7 +242,7 @@ Follow in order:
    - Calibrate Neutral Head for 10 seconds.
    - Follow animated `UP`, `DOWN`, `LEFT`, `RIGHT`, and `CENTER` verification.
 4. **Body check** — stillness, arms, torso, and selected leg movement.
-5. **Attention Task practice** — confirm keyboard/touch response.
+5. **Pop the Balloon input check** — kumpirmaha ang keyboard/touch input. Ang separate nga five-balloon participant practice mahitabo human sa secure pairing ug dili ma-record.
 6. **Review** — save draft, inspect, then accept the calibration profile.
 
 Do not start a real session kung Yellow/Red ang critical indicator o wala pa accepted calibration profile.
@@ -256,10 +256,10 @@ http://192.168.x.x:8000
 ```
 
 2. Sa tablet browser, ablihi ang LAN address.
-3. Para diretso sa participant task:
+3. Ayaw i-type diretso ang participant-task address. Sa operator screen, pili-a ang **Pair / open participant screen**, dayon gamita ang secure link o QR code:
 
 ```text
-http://<laptop-LAN-IP>:8000/attention-task
+http://<laptop-LAN-IP>:8000/attention-task?token=<secure-pairing-token>
 ```
 
 4. Kung dili ma-open:
@@ -274,7 +274,7 @@ http://<laptop-LAN-IP>:8000/attention-task
 2. Verify accepted calibration profile.
 3. Press **Start session**.
 4. Verify Green indicators and live measurements.
-5. Open/run Attention Task sa tablet.
+5. Paandara ang five-balloon practice ug dayon ang recorded Pop the Balloon activity sa tablet.
 6. Human sa test, press **Stop session**.
 7. Review ang saved record/report before leaving the station.
 

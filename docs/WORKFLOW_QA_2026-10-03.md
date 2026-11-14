@@ -1,4 +1,6 @@
-# Operator workflow audit — 3 October 2026
+# Historical operator workflow audit — 3 October 2026
+
+> Historical evidence only. The participant activity described in this audit has since been replaced by Pop the Balloon. Current release evidence is documented in `POP_THE_BALLOON_TASK.md` and the master enhancement checklist.
 
 ## Scope and evidence boundary
 
@@ -29,7 +31,7 @@ This is software/UI evidence, not clinical validation or physical-device accepta
 - Selected the participant and confirmed the four simulated pre-session checks.
 - Started a session using the ordinary Start session control, without a verification override.
 - Paired the participant-only display; it remained in the waiting screen until launch.
-- Completed practice, then launched Go / No-Go, Adult / Easy, 15 recorded trials.
+- Completed the then-current legacy practice and recorded activity. That activity is no longer selectable; Pop the Balloon is now the only participant game.
 - Exercised pause and resume; participant display reached Task complete.
 - Restored the active session on a fresh dashboard load and stopped it.
 - Opened the completed report and checked participant/session identity and trial count.

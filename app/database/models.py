@@ -39,6 +39,18 @@ class Participant(Base):
     sessions: Mapped[list["MonitoringSession"]] = relationship(back_populates="participant")
 
 
+class ShapeMatchingRun(Base):
+    """Separate durable shape records; never mixed with balloon trials."""
+    __tablename__ = "shape_matching_runs"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    session_id: Mapped[int] = mapped_column(ForeignKey("sessions.id"), index=True)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    status: Mapped[str] = mapped_column(String(20), default="waiting")
+    plan_json: Mapped[str] = mapped_column(Text)
+    rows_json: Mapped[str] = mapped_column(Text, default="[]")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+
 class MonitoringSession(Base):
     __tablename__ = "sessions"
 
@@ -170,6 +182,8 @@ class AttentionTrial(Base):
     session_id: Mapped[int] = mapped_column(ForeignKey("sessions.id"), index=True)
     trial_number: Mapped[int] = mapped_column(Integer)
     stimulus: Mapped[str] = mapped_column(String(30))
+    stimulus_json: Mapped[str] = mapped_column(Text, default="{}")
+    phase: Mapped[str] = mapped_column(String(20), default="recorded", index=True)
     is_target: Mapped[bool] = mapped_column(Boolean)
     stimulus_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, index=True)
     stimulus_session_seconds: Mapped[float] = mapped_column(Float)
@@ -181,6 +195,7 @@ class AttentionTrial(Base):
     incorrect: Mapped[bool] = mapped_column(Boolean, default=False)
     missed: Mapped[bool] = mapped_column(Boolean, default=False)
     false_response: Mapped[bool] = mapped_column(Boolean, default=False)
+    premature_taps: Mapped[int] = mapped_column(Integer, default=0)
 
 
 class AttentionTaskRun(Base):
@@ -195,6 +210,7 @@ class AttentionTaskRun(Base):
     difficulty: Mapped[str] = mapped_column(String(20), index=True)
     configuration_json: Mapped[str] = mapped_column(Text)
     status: Mapped[str] = mapped_column(String(20), default="active", index=True)
+    termination_reason: Mapped[str | None] = mapped_column(String(80), nullable=True)
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 

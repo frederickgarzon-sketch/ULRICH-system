@@ -24,6 +24,7 @@ from app.services.body_analysis_service import body_analysis_service
 from app.database.repository import DuplicateParticipantCode, RecordDeleteConflict, repository
 from app.sessions.session_manager import SessionConflict, session_manager
 from app.tasks.attention_task import AttentionTaskConflict, attention_task_service, task_catalog
+from app.tasks import shape_matching
 from app.tasks.research_protocols import (
     ResearchTaskConflict, protocol_catalog, research_task_service,
 )
@@ -105,22 +106,35 @@ class SessionStop(BaseModel):
 
 
 class AttentionTaskStart(BaseModel):
-    total_trials: int = Field(default=30, ge=5, le=200)
-    target_probability: float = Field(default=0.30, ge=0.1, le=0.9)
-    task_key: str = Field(default="target_tap", pattern=r"^(target_tap|go_no_go|focus_match|visual_search|pattern_memory)$")
+    task_key: str = Field(default="pop_balloon", pattern=r"^pop_balloon$")
     age_profile: str = Field(default="child", pattern=r"^(child|preteen|teen|adult)$")
-    difficulty: str = Field(default="moderate", pattern=r"^(easy|moderate|hard|standard)$")
+    difficulty: str = Field(default="easy", pattern=r"^(easy|moderate|hard|standard)$")
+    required_pops: int = Field(default=20, ge=5, le=50)
+    game_mode: str | None = Field(default=None, pattern=r"^(any|target_color)$")
+    target_color: str = Field(default="sky", pattern=r"^(coral|sky|turquoise|yellow|purple|orange|green|pink)$")
+    sound_enabled: bool = True
+    maximum_duration_seconds: int = Field(default=300, ge=60, le=600)
 
 
 class AttentionPracticeStart(BaseModel):
-    task_key: str = Field(pattern=r"^(target_tap|go_no_go|focus_match|visual_search|pattern_memory)$")
+    task_key: str = Field(default="pop_balloon", pattern=r"^pop_balloon$")
     age_profile: str = Field(pattern=r"^(child|preteen|teen|adult)$")
     difficulty: str = Field(pattern=r"^(easy|moderate|hard|standard)$")
+    required_pops: int = Field(default=20, ge=5, le=50)
+    game_mode: str | None = Field(default=None, pattern=r"^(any|target_color)$")
+    target_color: str = Field(default="sky", pattern=r"^(coral|sky|turquoise|yellow|purple|orange|green|pink)$")
+    sound_enabled: bool = True
+    maximum_duration_seconds: int = Field(default=300, ge=60, le=600)
 
 
 class TrialComplete(BaseModel):
     responded: bool
     reaction_time_ms: float | None = Field(default=None, ge=0, le=10000)
+    premature_taps: int = Field(default=0, ge=0, le=1000)
+
+
+class AttentionAbort(BaseModel):
+    reason: str = Field(default="operator_ended", min_length=1, max_length=80)
 
 
 class ResearchTaskStart(BaseModel):
@@ -748,12 +762,89 @@ def get_session_summary(session_id: int, request: Request) -> dict[str, object]:
 @router.post("/attention/start")
 def start_attention_task(payload: AttentionTaskStart, request: Request) -> dict[str, object]:
     _require_active_task_access(request)
+    if shape_matching.active_run(session_manager.active_session_id):
+        raise HTTPException(status_code=409, detail="Finish the Shape Matching run before launching balloons")
     try:
-        return attention_task_service.start(payload.total_trials, payload.target_probability,
+        return attention_task_service.start(
             task_key=payload.task_key, age_profile=payload.age_profile,
-            difficulty=payload.difficulty)
+            difficulty=payload.difficulty, required_pops=payload.required_pops,
+            game_mode=payload.game_mode, target_color=payload.target_color,
+            sound_enabled=payload.sound_enabled,
+            maximum_duration_seconds=payload.maximum_duration_seconds)
     except AttentionTaskConflict as exc:
         raise HTTPException(status_code=409, detail=str(exc))
+
+
+class ShapeStart(BaseModel):
+    count: int = Field(default=10, ge=5, le=50)
+
+
+class ShapeRow(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    trial: int = Field(ge=1, le=50, strict=True)
+    shape: str = Field(pattern=r"^(circle|square|triangle|star)$")
+    outcome: str = Field(pattern=r"^(matched|timeout|assistance_limit|stopped)$")
+    active_ms: int = Field(ge=0, le=31000, strict=True)
+    wrong_drops: int = Field(ge=0, le=3, strict=True)
+    first_attempt_correct: bool = Field(strict=True)
+
+
+@router.post("/shape-matching/stop-active")
+def stop_active_shape(request: Request):
+    _require_active_task_access(request)
+    if not session_manager.active_session_id:
+        raise HTTPException(status_code=409, detail="No active monitoring session")
+    result = shape_matching.stop_active(session_manager.active_session_id)
+    if result["stopped_runs"]: session_manager.set_phase("post_task")
+    return result
+
+
+@router.post("/shape-matching/runs", status_code=201)
+def create_shape_run(payload: ShapeStart, request: Request):
+    _require_active_task_access(request)
+    session_id = session_manager.active_session_id
+    if not session_id:
+        raise HTTPException(status_code=409, detail="Start a participant session first")
+    if attention_task_service.public_status()["phase"] in {"recording", "paused", "practice"}:
+        raise HTTPException(status_code=409, detail="End the balloon activity before launching Shape Matching")
+    try:
+        result = shape_matching.create_run(session_id, payload.count)
+        result["url"] = f"/shape-matching?token={result.pop('token')}"
+        return result
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+
+
+def shape_action(token, action="status", row=None):
+    try:
+        result = shape_matching.operate(token, action, row)
+        changed = result.pop("_status_changed", False)
+        if changed and action == "start" and result["status"] == "recording":
+            session_manager.set_phase("task")
+        elif changed and action in {"trial", "stop"} and result["status"] in {"complete", "stopped"}:
+            session_manager.set_phase("post_task")
+        return result
+    except PermissionError as exc:
+        raise HTTPException(status_code=401, detail=str(exc))
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+
+
+@router.get("/participant-task/shape/status")
+def shape_status(token: str = Query(min_length=30, max_length=100)):
+    return shape_action(token)
+
+
+@router.post("/participant-task/shape/action/{action}")
+def shape_control(action: str, token: str = Query(min_length=30, max_length=100)):
+    if action not in {"start", "pause", "resume", "stop"}:
+        raise HTTPException(status_code=404, detail="Unknown action")
+    return shape_action(token, action)
+
+
+@router.post("/participant-task/shape/trial")
+def shape_trial(payload: ShapeRow, token: str = Query(min_length=30, max_length=100)):
+    return shape_action(token, "trial", payload.model_dump())
 
 
 @router.get("/attention/status")
@@ -770,8 +861,19 @@ def attention_catalog() -> dict[str, object]:
 @router.post("/attention/practice")
 def prepare_attention_practice(payload: AttentionPracticeStart, request: Request) -> dict[str, object]:
     _require_active_task_access(request)
+    if shape_matching.active_run(session_manager.active_session_id):
+        raise HTTPException(status_code=409, detail="Finish the Shape Matching run before balloon practice")
     try:
         return attention_task_service.prepare_practice(**payload.model_dump())
+    except AttentionTaskConflict as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+
+
+@router.post("/attention/practice/cancel")
+def cancel_attention_practice(request: Request) -> dict[str, object]:
+    _require_active_task_access(request)
+    try:
+        return attention_task_service.cancel_practice()
     except AttentionTaskConflict as exc:
         raise HTTPException(status_code=409, detail=str(exc))
 
@@ -857,6 +959,16 @@ def participant_practice_cancel(token: str = Query(min_length=20, max_length=100
         raise HTTPException(status_code=409, detail=str(exc))
 
 
+@router.post("/participant-task/practice-help")
+def participant_practice_help(token: str = Query(min_length=20, max_length=100),
+                              generation: int | None = Query(default=None, ge=1)) -> dict[str, object]:
+    _require_display_token(token)
+    try:
+        return attention_task_service.practice_needs_help(generation)
+    except AttentionTaskConflict as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+
+
 @router.post("/participant-task/abort")
 def participant_task_abort(token: str = Query(min_length=20, max_length=100)) -> dict[str, object]:
     _require_display_token(token)
@@ -867,6 +979,15 @@ def participant_task_abort(token: str = Query(min_length=20, max_length=100)) ->
 def participant_task_recover(token: str = Query(min_length=20, max_length=100)) -> dict[str, object]:
     _require_display_token(token)
     return attention_task_service.recover_display()
+
+
+@router.post("/participant-task/pause")
+def participant_task_pause(token: str = Query(min_length=20, max_length=100)) -> dict[str, object]:
+    _require_display_token(token)
+    try:
+        return attention_task_service.pause()
+    except AttentionTaskConflict as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
 
 
 @router.post("/participant-task/trials/next")
@@ -885,15 +1006,26 @@ def participant_complete_trial(trial_id: int, payload: TrialComplete,
     if payload.responded and payload.reaction_time_ms is None:
         raise HTTPException(status_code=422, detail="reaction_time_ms is required for a response")
     try:
-        return attention_task_service.complete_trial(trial_id, payload.responded, payload.reaction_time_ms)
+        return attention_task_service.complete_trial(
+            trial_id, payload.responded, payload.reaction_time_ms, payload.premature_taps)
+    except AttentionTaskConflict as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+
+
+@router.get("/participant-task/trials/{trial_id}/status")
+def participant_trial_status(trial_id: int,
+                             token: str = Query(min_length=20, max_length=100)) -> dict[str, object]:
+    _require_display_token(token)
+    try:
+        return attention_task_service.completed_trial_status(trial_id)
     except AttentionTaskConflict as exc:
         raise HTTPException(status_code=409, detail=str(exc))
 
 
 @router.post("/attention/abort")
-def abort_attention_task(request: Request) -> dict[str, object]:
+def abort_attention_task(request: Request, payload: AttentionAbort | None = None) -> dict[str, object]:
     _require_active_task_access(request)
-    result = attention_task_service.abort()
+    result = attention_task_service.abort(payload.reason if payload else "operator_ended")
     repository.add_audit_event("attention.abort", str(result["session_id"]) if result["session_id"] else None,
                                request.client.host if request.client else None)
     return result
@@ -932,7 +1064,8 @@ def complete_attention_trial(trial_id: int, payload: TrialComplete, request: Req
     if payload.responded and payload.reaction_time_ms is None:
         raise HTTPException(status_code=422, detail="reaction_time_ms is required for a response")
     try:
-        return attention_task_service.complete_trial(trial_id, payload.responded, payload.reaction_time_ms)
+        return attention_task_service.complete_trial(
+            trial_id, payload.responded, payload.reaction_time_ms, payload.premature_taps)
     except AttentionTaskConflict as exc:
         raise HTTPException(status_code=409, detail=str(exc))
 
@@ -1361,6 +1494,7 @@ def head_status() -> dict[str, object]:
     if settings.mock_mode:
         return {
             "yaw": -4.2, "pitch": 2.1, "roll": 0.8, "direction": "CENTER",
+            "horizontal": "CENTER", "vertical": "CENTER", "tilt": "LEVEL",
             "magnitude": 4.8, "movement_event": False, "total_movements": 0,
             "movements_per_minute": 0.0, "calibrated": False,
             "calibration_status": "MOCK — calibration not required",
@@ -1369,6 +1503,8 @@ def head_status() -> dict[str, object]:
     return {
         "yaw": face["yaw"], "pitch": face["pitch"], "roll": face["roll"],
         "direction": face["head_direction"], "magnitude": face["head_movement_magnitude"],
+        "horizontal": face["horizontal_direction"], "vertical": face["vertical_direction"],
+        "tilt": face["head_tilt"],
         "movement_event": face["head_movement_event"], "total_movements": face["head_movements"],
         "movements_per_minute": face["head_movements_per_minute"],
         "calibrated": face["head_calibrated"], "calibration_status": face["head_calibration_status"],

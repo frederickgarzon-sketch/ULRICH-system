@@ -23,7 +23,7 @@ from app.vision.face_landmarks import (
     FACE_CONTOUR_CONNECTIONS, IRIS_CONNECTIONS, LEFT_EYE_INDICES,
     MOUTH_CONNECTIONS, RIGHT_EYE_INDICES, FaceLandmarkDetector,
 )
-from app.vision.head_pose import HeadMovementTracker, HeadPose, estimate_head_pose
+from app.vision.head_pose import HeadMovementTracker, HeadPose, estimate_head_pose, neutral_angle
 from app.vision.face_distance import distance_quality, estimate_face_distance_cm
 from app.services.landmark_config import parse_groups
 
@@ -47,7 +47,10 @@ class FaceState:
     yaw: float | None = None
     pitch: float | None = None
     roll: float | None = None
-    head_direction: str = "CENTER"
+    head_direction: str = "UNKNOWN"
+    horizontal_direction: str = "UNKNOWN"
+    vertical_direction: str = "UNKNOWN"
+    head_tilt: str = "UNKNOWN"
     head_movement_magnitude: float = 0.0
     head_movement_event: bool = False
     head_movements: int = 0
@@ -187,7 +190,9 @@ class FaceAnalysisService:
         age = camera.get("frame_age_seconds")
         if not settings.mock_mode and (camera["status"] != "CONNECTED" or age is None or age > 3):
             value.update(tracking=False, status="CAMERA OFFLINE", processing_fps=0.0,
-                         head_movement_event=False, estimated_distance_cm=None)
+                         head_movement_event=False, estimated_distance_cm=None,
+                         yaw=None, pitch=None, roll=None, head_direction="UNKNOWN",
+                         horizontal_direction="UNKNOWN", vertical_direction="UNKNOWN", head_tilt="UNKNOWN")
         return value
 
     def annotated_frame(self) -> np.ndarray | None:
@@ -228,7 +233,7 @@ class FaceAnalysisService:
             if result is None:
                 self.state.tracking = False
                 self.state.status = "NO FACE"
-                self.state.head_movement_event = False
+                self._clear_head_tracking()
             else:
                 left = eye_aspect_ratio(result.left_eye)
                 right = eye_aspect_ratio(result.right_eye)
@@ -267,17 +272,18 @@ class FaceAnalysisService:
                         self.state.pitch = head.pose.pitch
                         self.state.roll = head.pose.roll
                         self.state.head_direction = head.direction
+                        self.state.horizontal_direction = head.horizontal
+                        self.state.vertical_direction = head.vertical
+                        self.state.head_tilt = head.tilt
                         self.state.head_movement_magnitude = head.magnitude
                         self.state.head_movement_event = head.movement_event
                         self.state.head_movements = head.total_movements
                         self.state.head_movements_per_minute = head.movements_per_minute
                     else:
-                        self.state.yaw = None
-                        self.state.pitch = None
-                        self.state.roll = None
+                        self._clear_head_tracking()
                         self.state.head_direction = "CALIBRATE"
-                        self.state.head_movement_magnitude = 0.0
-                        self.state.head_movement_event = False
+                else:
+                    self._clear_head_tracking()
                 if settings.show_face_landmarks:
                     display_groups = parse_groups(settings.face_display_groups)
                     if "eyes" in display_groups:
@@ -294,7 +300,7 @@ class FaceAnalysisService:
                                                FACE_CONTOUR_CONNECTIONS, (90, 200, 255), 1)
                 label = f"EAR {average:.3f} | Blinks {update.total_blinks} | {update.blinks_per_minute:.1f}/min"
                 cv2.putText(annotated, label, (16, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.65, (70, 240, 160), 2)
-                pose_label = f"Y {self.state.yaw or 0:+.1f}  P {self.state.pitch or 0:+.1f}  R {self.state.roll or 0:+.1f}  {self.state.head_direction}"
+                pose_label = f"H: {self.state.horizontal_direction} | V: {self.state.vertical_direction}"
                 cv2.putText(annotated, pose_label, (16, 58), cv2.FONT_HERSHEY_SIMPLEX, 0.62, (90, 200, 255), 2)
             frames += 1
             elapsed = now - fps_started
@@ -305,6 +311,14 @@ class FaceAnalysisService:
             with self._lock:
                 self._annotated = annotated
             self._stop.wait(max(0.0, interval - (time.monotonic() - loop_started)))
+
+    def _clear_head_tracking(self) -> None:
+        self._head.reset_tracking()
+        self.state.yaw = self.state.pitch = self.state.roll = None
+        self.state.head_direction = "UNKNOWN"
+        self.state.horizontal_direction = self.state.vertical_direction = self.state.head_tilt = "UNKNOWN"
+        self.state.head_movement_event = False
+        self.state.head_movement_magnitude = 0.0
 
     @staticmethod
     def _draw_points(frame: np.ndarray, points: tuple[tuple[float, float, float], ...],
@@ -355,9 +369,15 @@ class FaceAnalysisService:
             return
         self._head_calibration_until = 0.0
         if len(self._head_calibration_samples) >= 10:
-            yaw = statistics.median(item.yaw for item in self._head_calibration_samples)
-            pitch = statistics.median(item.pitch for item in self._head_calibration_samples)
-            roll = statistics.median(item.roll for item in self._head_calibration_samples)
+            yaw = neutral_angle([item.yaw for item in self._head_calibration_samples])
+            pitch = neutral_angle([item.pitch for item in self._head_calibration_samples])
+            roll = neutral_angle([item.roll for item in self._head_calibration_samples])
+            spreads = [statistics.median(abs(self._head._angular_delta(getattr(item, axis), center))
+                       for item in self._head_calibration_samples)
+                       for axis, center in [("yaw", yaw), ("pitch", pitch), ("roll", roll)]]
+            if max(spreads) > 8:
+                self.state.head_calibration_status = "CALIBRATION FAILED — hold your head still and retry"
+                return
             self._head.set_neutral(yaw, pitch, roll)
             self.state.head_calibrated = True
             # Raw solvePnP Euler angles can legitimately wrap near ±180°. Operators

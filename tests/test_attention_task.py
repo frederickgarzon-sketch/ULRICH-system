@@ -23,24 +23,24 @@ def test_non_target_omission_is_correct() -> None:
     assert result.correct and not result.incorrect
 
 
-def test_each_task_builds_distinct_stimulus_metadata() -> None:
+def test_balloon_plan_contains_complete_reproducible_metadata() -> None:
+    import random
     service = AttentionTaskService()
-    expected_fields = {
-        "target_tap": "symbol", "go_no_go": "label", "focus_match": "items",
-        "visual_search": "target_index", "pattern_memory": "reference",
-    }
-    for task_key, field in expected_fields.items():
-        service._task_key = task_key
-        stimulus = service._build_stimulus(True)
-        assert field in stimulus
-        assert stimulus["code"]
+    first = service._build_stimulus_plan(12, 5, "moderate", "target_color", "sky", random.Random(42), practice=False)
+    second = service._build_stimulus_plan(12, 5, "moderate", "target_color", "sky", random.Random(42), practice=False)
+    assert first == second
+    assert {"code", "color", "target_color", "is_target", "x_percent", "y_percent",
+            "size_px", "speed", "display_ms", "intertrial_ms", "practice"} <= set(first[0])
+    assert all(10 <= item["x_percent"] <= 84 and 14 <= item["y_percent"] <= 58 for item in first)
 
 
 def test_operator_pause_and_resume_are_explicit_states() -> None:
+    import time
     service = AttentionTaskService()
     with pytest.raises(AttentionTaskConflict):
         service.pause()
     service._run_id = 9
+    service._last_display_seen = time.monotonic()
     service._display_phase = "recording"
     assert service.pause()["phase"] == "paused"
     assert service.resume()["phase"] == "recording"

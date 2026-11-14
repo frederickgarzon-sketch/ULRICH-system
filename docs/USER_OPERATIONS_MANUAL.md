@@ -81,15 +81,20 @@ The participant screen is always attached to the participant whose monitoring se
 
 Open **Research Tasks** on the researcher laptop and create a secure participant pairing. The QR/link contains a random capability that expires after 30 minutes and permits only participant practice and assigned trials; it cannot open records, settings, or researcher controls. On the tablet, scan the QR and keep the neutral **Please wait** screen open. Use **Configure & launch** on the researcher laptop. Never share the protected `/attention-task/operator` route with a participant.
 
-Choose one of the five approved screen formats:
+The new-session activity is **Pop the Balloon**:
 
-- **Target Tap:** simple target-versus-distractor response; clearest starting option for children.
-- **Go / No-Go:** respond to GO and wait on STOP; available across age profiles.
-- **Focus Match:** respond when two symbols match; intended for pre-teens, teens, and adults.
-- **Visual Search:** respond when one item differs; available across age profiles.
-- **Pattern Memory:** recognize the previously shown pattern; intended for pre-teens, teens, and adults.
+- **Easy — Pop Any Balloon:** every displayed balloon is a target; large, slow balloons and longer response time.
+- **Moderate — Target Color:** pop only the named color; other colors are distractors.
+- **Hard — Target Color:** smaller/faster balloons, shorter display time, randomized waits, and more distractors.
+- **Standard:** the normal adult/research timing preset; it is not proof of clinical standardization.
 
-Use **Easy** as the normal starting level for ages 6–9 and **Moderate** for ages 10–12. The research preset is a locked timing preset, not proof of clinical standardization. “Age fit” is a usability recommendation, not a diagnosis or proof that a protocol is validated. Launch the four practice examples remotely and confirm completion on the participant tablet before recording. Practice is not saved; recorded trials store the exact participant, task version, age profile, difficulty, stimulus metadata, timing, and configuration. Only one recorded task may run at a time.
+Correct-pop goal presets are 10, 15, 20, and 30. A custom goal may be 5–50; the overall recommended default is 20. Age-based starting suggestions are Child 6–9: 15/Easy; Pre-teen 10–12: 20/Moderate; Teen 13–17: 30/Moderate; Adult 18+: 30/Standard. The operator may change the recommendation before practice.
+
+Use this exact workflow: pair/open participant screen → start or repeat five-balloon practice → confirm the participant is ready → begin recorded game. Practice is not saved. During recording, only one balloon is active. The operator may pause, resume, or end early with a reason. The activity automatically completes when the correct-pop goal is reached; hidden guards stop it after three times the goal in attempts or the configured duration.
+
+The recorded run stores its version, participant, final configuration, random seed, full sequence, and exact balloon metadata/timing. Refreshing or reconnecting replays only an unfinished planned balloon; a completed tap cannot be duplicated. Previous-version session rows stay readable in reports and exports.
+
+“Age fit” and game performance are research usability/measurement information, not a diagnosis or clinical cutoff. Only one recorded activity may run at a time.
 
 Raw video recording is intentionally OFF. Enabling it requires a separate ethics, consent, retention, storage, and access-control decision.
 
@@ -101,7 +106,7 @@ Open **Research tasks** from the sidebar before opening the participant screen. 
 - **Validation required:** the task definition and storage engine exist, but recorded use is locked until its required measurement provider passes validation.
 - **Planned:** documented for a later implementation and cannot be started.
 
-The existing star/circle response task remains the available recorded task. Its practice trials are not saved as recorded outcomes.
+Pop the Balloon is the available recorded participant activity. Its practice balloons are not saved as recorded outcomes. Historical star/circle and other previous-version task records remain readable but cannot be selected for a new session.
 
 **Eye Control Standard** contains a 30-second fixation block plus balanced prosaccade and antisaccade trials. It remains **Validation required** because the current eye/iris landmarks support visualization and blink processing, not validated screen-coordinate gaze. Do not bypass this gate or manually relabel landmark output as gaze data.
 

@@ -10,7 +10,7 @@ Updated: 2026-10-04
 - Short-lived participant-display pairing. The tablet capability is limited to practice/status/trial calls and expires after 30 minutes.
 - Separate protected researcher route (`/attention-task/operator`) and participant-only QR route.
 - Remotely launched, unrecorded practice followed by researcher-controlled recording.
-- Versioned task-run snapshots and task-specific stimuli for Target Tap, Go/No-Go, Focus Match, Visual Search, and Pattern Memory.
+- Versioned Pop the Balloon runs with goal-based completion, reproducible stimulus plans, unrecorded practice, operator pause/resume, refresh recovery, detailed balloon metadata, and readable historical task rows.
 - Explicit non-diagnostic reporting, machine-readable exports, integrity hashes, SQLite online backup, and interrupted-session recovery.
 - Automated API, scoring, camera, pose, movement, performance-health, Raspberry Pi node, and protocol tests.
 

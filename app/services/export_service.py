@@ -16,7 +16,7 @@ from app.database.database import engine
 from app.database.repository import repository
 
 
-EXPORT_SCHEMA_VERSION = "2.0"
+EXPORT_SCHEMA_VERSION = "2.1"
 
 
 def _json_bytes(value: object) -> bytes:
@@ -44,6 +44,10 @@ def session_archive(session_id: int) -> bytes | None:
         return None
 
     files: dict[str, bytes] = {
+        "shape_matching_trials.csv": _csv_bytes(
+            ["run_id", "game_type", "trial", "shape", "outcome", "active_ms", "wrong_drops", "first_attempt_correct"],
+            [{"run_id": run["id"], "game_type": "shape_matching", **row}
+             for run in report.get("shape_matching", []) for row in run["rows"]]),
         "session.json": _json_bytes({"schema_version": EXPORT_SCHEMA_VERSION, "exported_at": _now(), **report}),
         "blink_events.csv": _csv_bytes(["time", "ear", "closure_duration_seconds", "phase"], report["blink"]["events"]),
         "head_pose_samples.csv": _csv_bytes(["time", "yaw", "pitch", "roll", "valid", "status", "phase"], report["head"]["samples"]),
@@ -54,8 +58,23 @@ def session_archive(session_id: int) -> bytes | None:
         "body_movement_events.csv": _csv_bytes(["time", "magnitude", "phase"], report["body"]["events"]),
         "posture_events.csv": _csv_bytes(["time", "angle", "phase"], report["body"]["posture_events"]),
         "attention_trials.csv": _csv_bytes(
-            ["trial", "stimulus", "time", "reaction_time_ms", "is_target", "responded", "correct", "missed", "false_response"],
-            report["attention"]["trials"],
+            ["trial", "stimulus", "time", "reaction_time_ms", "is_target", "responded",
+             "correct", "missed", "false_response", "premature_taps", "phase", "balloon_color",
+             "target_color", "x_percent", "y_percent", "size_px", "speed", "display_ms",
+             "intertrial_ms", "face_valid", "body_valid", "pause_context"],
+            [{**trial,
+              "balloon_color": (trial.get("balloon") or {}).get("color"),
+              "target_color": (trial.get("balloon") or {}).get("target_color"),
+              "x_percent": (trial.get("balloon") or {}).get("x_percent"),
+              "y_percent": (trial.get("balloon") or {}).get("y_percent"),
+              "size_px": (trial.get("balloon") or {}).get("size_px"),
+              "speed": (trial.get("balloon") or {}).get("speed"),
+              "display_ms": (trial.get("balloon") or {}).get("display_ms"),
+              "intertrial_ms": (trial.get("balloon") or {}).get("intertrial_ms"),
+              "face_valid": ((trial.get("balloon") or {}).get("tracking") or {}).get("face_valid"),
+              "body_valid": ((trial.get("balloon") or {}).get("tracking") or {}).get("body_valid"),
+              "pause_context": (trial.get("balloon") or {}).get("pause_context")}
+             for trial in report["attention"]["trials"]],
         ),
         "tracking_validity.csv": _csv_bytes(
             ["time", "phase", "face_valid", "eyes_valid", "head_valid", "body_valid", "face_status", "body_status"],

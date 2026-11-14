@@ -9,14 +9,15 @@ from datetime import datetime, timezone
 from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 
-from analysis.hemslnn_features import screening_summary
+from analysis.hemslnn_features import extract
 from app.database.database import SessionLocal
+from app.tasks.shape_matching import payload as shape_run_payload
 from app.database.models import (
     AttentionTrial, AttentionTaskRun, BlinkEvent, BodyMovementEvent, BodyMovementSample,
     HeadMovementEvent, HeadPoseSample, MonitoringSession, Participant,
     PostureEvent, SessionSummary, AuditEvent, CalibrationProfile,
     ResearchTaskRun, ResearchTaskTrial, UserAccount, CalibrationVerification, SystemSetupState,
-    TrackingValiditySample, SessionPhaseEvent,
+    TrackingValiditySample, SessionPhaseEvent, ShapeMatchingRun,
 )
 
 
@@ -172,6 +173,7 @@ class Repository:
                           TrackingValiditySample, SessionPhaseEvent, SessionSummary):
                 db.execute(delete(model).where(model.session_id == session_id))
             db.execute(delete(AttentionTaskRun).where(AttentionTaskRun.session_id == session_id))
+            db.execute(delete(ShapeMatchingRun).where(ShapeMatchingRun.session_id == session_id))
             db.delete(session)
             db.commit()
 
@@ -354,9 +356,34 @@ class Repository:
             validity_samples = rows(TrackingValiditySample)
             phase_events = rows(SessionPhaseEvent)
             operator = db.get(UserAccount, session.operator_id) if session.operator_id else None
+            def parsed_json(value: str | None) -> dict[str, object]:
+                try:
+                    result = json.loads(value or "{}")
+                    return result if isinstance(result, dict) else {}
+                except (TypeError, json.JSONDecodeError):
+                    return {}
+            trial_metadata = {item.id: parsed_json(getattr(item, "stimulus_json", "{}")) for item in trials}
             reaction_times = [item.reaction_time_ms for item in trials if item.reaction_time_ms is not None and item.is_target]
             completed = [item for item in trials if item.correct or item.incorrect or item.missed]
             correct = sum(item.correct for item in completed)
+            correct_pops = sum(bool(item.is_target and item.responded) for item in completed)
+            incorrect_pops = sum(bool(item.false_response) for item in completed)
+            missed_targets = sum(bool(item.missed) for item in completed)
+            premature_taps = sum(int(getattr(item, "premature_taps", 0) or 0) for item in completed)
+            balloon_tracking = [trial_metadata[item.id].get("tracking", {}) for item in completed
+                                if trial_metadata[item.id]]
+            valid_balloon_tracking = sum(bool(item.get("face_valid") and item.get("body_valid"))
+                                         for item in balloon_tracking)
+            balloon_run = next((item for item in reversed(attention_runs)
+                                if item.task_key == "pop_balloon"), None)
+            balloon_config = parsed_json(balloon_run.configuration_json) if balloon_run else {}
+            required_pops = int(balloon_config.get("required_correct_pops", 0) or 0)
+            completion_seconds = None
+            if balloon_run and balloon_run.completed_at:
+                run_started, run_ended = balloon_run.started_at, balloon_run.completed_at
+                if run_started.tzinfo is None: run_started = run_started.replace(tzinfo=timezone.utc)
+                if run_ended.tzinfo is None: run_ended = run_ended.replace(tzinfo=timezone.utc)
+                completion_seconds = round((run_ended - run_started).total_seconds(), 3)
             duration = summary.duration_seconds if summary else (
                 (session.end_time - session.start_time).total_seconds() if session.end_time else None
             )
@@ -391,6 +418,11 @@ class Repository:
                 "attention": attention_valid_pct,
                 "blink": blink_valid_pct,
             }
+            valid_tracking_duration = 0.0
+            ordered_validity = sorted(validity_samples, key=lambda item: item.session_seconds)
+            for current, following in zip(ordered_validity, ordered_validity[1:]):
+                if (current.phase == "task" and current.face_valid and current.body_valid):
+                    valid_tracking_duration += min(2.0, max(0.0, following.session_seconds - current.session_seconds))
             quality_warnings = []
             for signal, valid_pct in signal_valid_pct.items():
                 if valid_pct is not None and valid_pct < 80:
@@ -401,6 +433,10 @@ class Repository:
                 quality_warnings.append("No validity samples are available, so zero blinks cannot be distinguished from missing eye tracking.")
             if recorded_research and len(valid_research) < max(1, round(len(recorded_research) * .8)):
                 quality_warnings.append("Fewer than 80% of recorded eye-control trials were valid.")
+            if balloon_run and balloon_tracking and valid_balloon_tracking < round(len(balloon_tracking) * .8):
+                quality_warnings.append(
+                    f"Balloon task: {valid_balloon_tracking}/{len(balloon_tracking)} attempts had both face and body tracking."
+                )
             gaze_validated = any(item.gaze_validated for item in research_runs)
             if research_runs and not gaze_validated:
                 quality_warnings.append("Screen-coordinate gaze was not validated; fixation and saccade outputs are unavailable.")
@@ -428,6 +464,8 @@ class Repository:
                               "usable_with_warnings" if quality_warnings else "usable")
             event_blink_rate = round(len(blinks) * 60 / duration, 1) if duration and duration > 0 else 0
             report = {
+                "shape_matching": [shape_run_payload(r)
+                                   for r in rows(ShapeMatchingRun)],
                 "participant": participant_value,
                 "session": {"id": session.id, "participant_id": session.participant_id,
                             "participant_code": participant.participant_code if participant else "UNKNOWN",
@@ -460,23 +498,41 @@ class Repository:
                          "posture_events": [{"time": item.session_seconds, "angle": item.posture_angle,
                                              "phase": item.phase}
                                             for item in posture_events]},
-                "attention": {"total_trials": len(completed), "correct": correct,
+                "attention": {"total_trials": len(completed), "total_attempts": len(completed),
+                              "correct": correct, "correct_pops": correct_pops,
+                              "required_pops": required_pops,
                               "incorrect": sum(item.incorrect for item in completed),
-                              "missed": sum(item.missed for item in completed),
-                              "false_responses": sum(item.false_response for item in completed),
+                              "incorrect_pops": incorrect_pops,
+                              "missed": missed_targets,
+                              "false_responses": incorrect_pops,
+                              "premature_taps": premature_taps,
+                              "valid_tracking_attempts": valid_balloon_tracking,
+                              "valid_tracking_attempt_pct": round(valid_balloon_tracking * 100 / len(balloon_tracking), 1)
+                              if balloon_tracking else None,
+                              "valid_tracking_duration_seconds": round(valid_tracking_duration, 3),
                               "accuracy": round(correct * 100 / len(completed), 1) if completed else 0,
                               "average_reaction_time_ms": rt_mean,
+                              "median_reaction_time_ms": round(statistics.median(reaction_times), 1) if reaction_times else None,
                               "reaction_time_sd_ms": rt_sd,
+                              "fastest_reaction_time_ms": round(min(reaction_times), 1) if reaction_times else None,
+                              "slowest_reaction_time_ms": round(max(reaction_times), 1) if reaction_times else None,
+                              "completion_seconds": completion_seconds,
+                              "termination_reason": balloon_run.termination_reason if balloon_run else None,
+                              "goal_reached": bool(balloon_run and balloon_run.termination_reason == "goal_reached"),
                               "reaction_times": reaction_times,
                               "trials": [{"trial": item.trial_number, "stimulus": item.stimulus,
                                           "time": item.stimulus_session_seconds,
                                           "reaction_time_ms": item.reaction_time_ms,
                                           "is_target": item.is_target, "responded": item.responded,
                                           "correct": item.correct, "missed": item.missed,
-                                          "false_response": item.false_response} for item in trials]},
+                                          "false_response": item.false_response,
+                                          "premature_taps": getattr(item, "premature_taps", 0),
+                                          "phase": getattr(item, "phase", "recorded"),
+                                          "balloon": trial_metadata[item.id]} for item in trials]},
                 "attention_configuration": [{"id": item.id, "task_key": item.task_key,
                     "task_version": item.task_version, "age_profile": item.age_profile,
                     "difficulty": item.difficulty, "status": item.status,
+                    "termination_reason": item.termination_reason,
                     "configuration": json.loads(item.configuration_json),
                     "started_at": item.started_at.isoformat(),
                     "completed_at": item.completed_at.isoformat() if item.completed_at else None}
@@ -522,7 +578,11 @@ class Repository:
                     "type": "descriptive_research_summary",
                     "measurement_families": [
                         {"key": "task", "label": "Task performance",
-                         "observed": f"{correct}/{len(completed)} correct; {sum(item.missed for item in completed)} missed; mean response {rt_mean if rt_mean is not None else 'not available'} ms.",
+                         "observed": (f"{correct_pops}/{required_pops} required balloons popped; "
+                                      f"{incorrect_pops} incorrect pops; {missed_targets} missed targets; "
+                                      f"mean response {rt_mean if rt_mean is not None else 'not available'} ms."
+                                      if balloon_run else
+                                      f"{correct}/{len(completed)} correct; {missed_targets} missed; mean response {rt_mean if rt_mean is not None else 'not available'} ms."),
                          "construct": "Sustained attention and response consistency", "diagnostic": False},
                         {"key": "blink", "label": "Blink / eye closure",
                          "observed": f"{len(blinks)} blinks; average rate {event_blink_rate}/min.",
@@ -546,7 +606,18 @@ class Repository:
                 ],
                 "disclaimer": "These measurements describe observed behavioral and task-performance signals and are not, by themselves, a diagnosis of ADHD.",
             }
-            report["research_screening"] = screening_summary(report)
+            # Session outputs are descriptive records. Reference comparison remains
+            # an explicit offline research operation, never a participant verdict.
+            if session.status != "active":
+                for shape_run in report["shape_matching"]:
+                    if shape_run["status"] in {"waiting", "recording", "paused"}:
+                        shape_run["status"] = "interrupted"
+            report["research_features"] = extract(report)
+            report["research_screening"] = {
+                "status": "descriptive_only", "clinically_validated": False,
+                "score": None, "features": report["research_features"],
+                "notice": "Recorded features for research comparison; no classification assigned.",
+            }
             return report
 
 

@@ -1,10 +1,14 @@
 # Behavior Monitor — Research Console
 
-> **Recovery baseline (2026-10-25):** This repository was imported from the
-> available October 4 source copy. The October 17 working copy/fixes were not
-> found and are **not represented as completed here**. Read
-> [repository provenance and collaboration workflow](docs/REPOSITORY_BASELINE.md)
-> before updating or deploying. Historical descriptions below require revalidation.
+> **Source synchronization — 2026-11-14:** Updated from the recovered October 11
+> Pop the Balloon source, plus local Shape Matching/session/report and practice
+> re-entry fixes. This is **not a production-approved release**. Unified operator
+> game selection, full application/HTTP tests, tablet acceptance and the client's
+> actual dark-balloon complaint remain pending. See
+> [current verification checklist](docs/GAME_UPDATE_PHASE_5_2026-11-14.md),
+> [visual update](docs/SHAPE_MATCHING_VISUAL_UPDATE_2026-11-14.md), and
+> [source provenance](docs/REPOSITORY_BASELINE.md). October 17 fixes are not assumed
+> recovered. Historical documentation/test counts below are not current evidence.
 
 ## Documentation
 
@@ -137,15 +141,17 @@ Session endpoints:
 
 SQLite tables now include participants, sessions, blink events, head-pose samples, head-movement events, body-movement samples/events, posture events, and session summaries. Indexes are present on participant/session identifiers and measurement timestamps.
 
-## Phase 7 attention task
+## Phase 7 Pop the Balloon activity
 
-Open `/attention-task` in a separate browser window or participant display after the researcher starts a monitoring session. The fullscreen participant view shows only instructions, fixation, stimulus, progress, and completion—not camera feeds or researcher statistics.
+After a monitoring session starts, open `/attention-task/operator`, pair the participant screen, and complete the five-balloon practice. The participant view contains only the colorful game, goal, progress, and friendly completion/recovery messages—not cameras, tracking errors, technical values, or researcher controls.
 
-Prototype rule: press `SPACE` for a STAR target and do not press for a CIRCLE non-target. Trial count and target probability are configurable. Each trial stores its number, stimulus type, target/non-target flag, UTC onset/response timestamps, active-session timestamps, response, reaction time, correctness, missed-target flag, and false-response flag.
+The only new-session activity is **Pop the Balloon** (`pop_balloon`, version `2.0.0-balloon`). Easy mode uses **Pop Any Balloon**. Moderate, Hard, and Standard can use **Target Color**, where non-target colors are distractors. Goals are based on correct pops, with presets of 10, 15, 20, and 30 and a custom range of 5–50. The recommended default is 20. Age suggestions are Child 15/Easy, Pre-teen 20/Moderate, Teen 30/Moderate, and Adult 30/Standard; the operator may change them.
 
-The session summary calculates total completed trials, correct and incorrect responses, missed targets, false responses, accuracy, average target reaction time, and population-standard-deviation reaction-time variability. Browser `performance.now()` provides millisecond interval measurement while the server supplies the shared session timeline.
+Each recorded run saves a random seed and its complete pre-generated sequence. Each balloon saves color, target color, target/distractor status, intended position, size, speed, display/wait timings, UTC and session-relative onset, response time, correctness, missed/false response, premature taps, tracking validity, and pause/reconnect context. Practice uses a separate sequence and is never written as recorded trials.
 
-This task is a prototype research instrument and must not be described as a validated Continuous Performance Test or diagnostic test.
+The game ends automatically at the correct-pop goal, three times the goal in attempts, or the configured time limit (five minutes recommended). Operator pause/resume and early-end reason are supported. A refresh replays only the unfinished planned balloon and cannot duplicate a completed response. Browser `performance.now()` captures the response interval before animation begins.
+
+Saved summaries include the goal, correct/incorrect pops, missed targets, attempts, accuracy, completion state/time, mean/median/variability/min/max reaction time, premature taps, and tracking-quality indicators. Historical task rows from earlier versions remain readable. This activity is a research measurement and must not be described as a validated diagnostic test.
 
 ## Phase 8 live timeline and reports
 
