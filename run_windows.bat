@@ -27,7 +27,8 @@ set "SERVER_EXIT_CODE=%ERRORLEVEL%"
 echo.
 if not "%SERVER_EXIT_CODE%"=="0" (
   echo The server stopped unexpectedly or could not start.
-  echo Review the final error above. A camera-source conflict must be corrected in Settings.
+  echo Review the final traceback above for the actual cause.
+  echo Missing modules or dependencies must be corrected before camera checks can run.
 ) else (
   echo The server was stopped normally.
 )

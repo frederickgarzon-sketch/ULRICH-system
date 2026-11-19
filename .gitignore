@@ -21,7 +21,7 @@ private-backups/
 recordings/
 exports/
 reports/
-sessions/
+/sessions/
 *.db
 *.db-*
 *.sqlite*
